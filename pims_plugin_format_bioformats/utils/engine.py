@@ -1,10 +1,10 @@
 #  * Copyright (c) 2020-2021. Authors: see NOTICE file.
 #  *
-#  * Licensed under the GNU Lesser General Public License, Version 2.1 (the "License");
+#  * Licensed under the Apache License, Version 2.0 (the "License");
 #  * you may not use this file except in compliance with the License.
 #  * You may obtain a copy of the License at
 #  *
-#  *      https://www.gnu.org/licenses/lgpl-2.1.txt
+#  *      http://www.apache.org/licenses/LICENSE-2.0
 #  *
 #  * Unless required by applicable law or agreed to in writing, software
 #  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,15 +16,20 @@ import json
 import logging
 from socket import AF_INET, SOCK_STREAM, socket
 
+import numpy as np
 from asgiref.sync import async_to_sync
 from fastapi_cache.coder import PickleCoder
+
 from pims import UNIT_REGISTRY
 from pims.cache import cache
-from pims.formats.utils.abstract import AbstractConvertor, AbstractParser, AbstractReader
+from pims.formats.utils.abstract import (
+    AbstractConvertor, AbstractParser,
+    AbstractReader
+)
 from pims.formats.utils.metadata import ImageChannel, ImageMetadata, parse_float
-from pims.formats.utils.pyramid import normalized_pyramid
+from pims.formats.utils.planes import PlanesInfo
+from pims.formats.utils.pyramid import Pyramid, normalized_pyramid
 from pims.processing.color import Color
-
 from pims_plugin_format_bioformats.config import get_settings
 
 settings = get_settings()
@@ -157,16 +162,13 @@ class BioFormatsParser(AbstractParser):
 
         imd.microscope.model = metadata.get('Bioformats.Microscope.Model')
 
-        # TODO
-        # for associated in ('macro', 'thumbnail', 'label'):
-        #     if associated in get_vips_field(image, 'slide-associated-images', []):
-        #         head = VIPSImage.openslideload(
-        #             str(self.format.path), associated=associated
-        #         )
-        #         imd_associated = getattr(imd, f'associated_{associated[:5]}')
-        #         imd_associated.width = head.width
-        #         imd_associated.height = head.height
-        #         imd_associated.n_channels = head.bands
+        for associated in ('Macro', 'Thumb', 'Label'):
+            key = f'Bioformats.Series.{associated}'
+            if associated in metadata:
+                imd_associated = getattr(imd, f'associated_{associated.lower()}')
+                imd_associated.width = metadata[key].get('Width')
+                imd_associated.height = metadata[key].get('Height')
+                imd_associated.n_channels = metadata[key].get('Channels')
         imd.is_complete = True
         return imd
 
@@ -177,6 +179,39 @@ class BioFormatsParser(AbstractParser):
                 and unit is not None:
             return parse_float(physical_size) * UNIT_REGISTRY(unit)
         return None
+
+    def parse_pyramid(self):
+        metadata = cached_bioformats_metadata(self.format)
+
+        pyramid = Pyramid()
+        for tier in metadata.get('Bioformats.Pyramid', []):
+            pyramid.insert_tier(
+                width=tier.get('Width'),
+                height=tier.get('Height'),
+                tile_size=(tier.get('TileWidth'), tier.get('TileHeight'))
+            )
+
+        return pyramid
+
+    def parse_planes(self):
+        metadata = cached_bioformats_metadata(self.format)
+        imd = self.format.main_imd
+        planes = PlanesInfo(
+            imd.n_intrinsic_channels, imd.depth, imd.duration,
+            ['bf_index', 'bf_series'], [np.int, np.int]
+        )
+
+        for plane_info in metadata.get('Bioformats.Planes', []):
+            c = plane_info.get('TheC')
+            z = plane_info.get('TheZ')
+            t = plane_info.get('TheT')
+            planes.set(
+                c, z, t,
+                bf_index=plane_info.get('_Index'),
+                bf_series=plane_info.get('_Series')
+            )
+
+        return planes
 
     def parse_raw_metadata(self):
         message = {

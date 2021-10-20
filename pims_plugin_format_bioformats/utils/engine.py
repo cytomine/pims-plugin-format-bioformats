@@ -14,9 +14,10 @@
 
 import json
 import logging
-from socket import AF_INET, SOCK_STREAM, socket
+from socket import AF_INET, SOCK_STREAM, error as socket_error, socket
 
 import numpy as np
+import select
 from asgiref.sync import async_to_sync
 from fastapi_cache.coder import PickleCoder
 
@@ -37,21 +38,40 @@ settings = get_settings()
 logger = logging.getLogger("pims.formats")
 
 
-def ask_bioformats(message: dict, timeout: float = 15.0, silent_fail: bool = False) -> dict:
+def ask_bioformats(
+    message: dict,
+    request_timeout: float = 1.0,
+    response_timeout: float = 15.0,
+    silent_fail: bool = False
+) -> dict:
     request = json.dumps(message) + "\n"
 
     response = ""
     try:
         with socket(AF_INET, SOCK_STREAM) as sock:
-            sock.settimeout(timeout)
+            sock.settimeout(request_timeout)
             sock.connect((settings.bioformats_host, settings.bioformats_port))
             sock.sendall(request.encode('utf-8'))
+            closed = False
+            _response_timeout = response_timeout
 
-            buffer_size = 1024
-            while True:
+            def _data_available():
+                if closed:
+                    return False
+                try:
+                    return bool(select.select([sock], [], [], _response_timeout)[0])
+                except socket_error:
+                    raise InterruptedError
+
+            buffer_size = 4096
+            while _data_available():
+                _response_timeout = 0.5
                 data = sock.recv(buffer_size)
-                response += data.decode('utf-8')
-                if len(data) < buffer_size:
+                if data:
+                    response += data.decode('utf-8')
+
+                if not data or len(data) < buffer_size:
+                    closed = True
                     break
 
             parsed_response = json.loads(response)
@@ -63,8 +83,8 @@ def ask_bioformats(message: dict, timeout: float = 15.0, silent_fail: bool = Fal
         logger.error(f"Connection to Bio-Formats ({settings.bioformats_host}:"
                      f"{settings.bioformats_port} has failed or has been interrupted.")
         raise e
-    except TimeoutError as e:
-        logger.error(f"Timeout error ({timeout} s) while waiting Bio-Formats "
+    except TimeoutError:
+        logger.error(f"Timeout error ({response_timeout} s) while waiting Bio-Formats "
                      f"response for message: {message}")
 
 
@@ -258,7 +278,7 @@ class BioFormatsSpatialConvertor(AbstractConvertor):
             "nPyramidResolutions": n_resolutions,
             "pyramidScaleFactor": 2
         }
-        result = ask_bioformats(message, timeout=1800.0, silent_fail=True)
+        result = ask_bioformats(message, response_timeout=1800.0, silent_fail=True)
         return 'file' in result
 
     def conversion_format(self):

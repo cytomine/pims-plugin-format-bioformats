@@ -14,10 +14,10 @@
 
 import json
 import logging
+import select
 from socket import AF_INET, SOCK_STREAM, error as socket_error, socket
 
 import numpy as np
-import select
 from asgiref.sync import async_to_sync
 from fastapi_cache.coder import PickleCoder
 
@@ -27,10 +27,11 @@ from pims.formats.utils.abstract import (
     AbstractConvertor, AbstractParser,
     AbstractReader
 )
-from pims.formats.utils.metadata import ImageChannel, ImageMetadata, parse_float
-from pims.formats.utils.planes import PlanesInfo
-from pims.formats.utils.pyramid import Pyramid, normalized_pyramid
-from pims.processing.color import Color
+from pims.formats.utils.structures.metadata import ImageChannel, ImageMetadata
+from pims.formats.utils.structures.planes import PlanesInfo
+from pims.formats.utils.structures.pyramid import Pyramid, normalized_pyramid
+from pims.utils.color import Color
+from pims.utils.types import parse_float
 from pims_plugin_format_bioformats.config import get_settings
 
 settings = get_settings()
@@ -135,13 +136,12 @@ class BioFormatsParser(AbstractParser):
                 channel_md.get('ExcitationWavelengthUnit')
             )
 
-            imd.set_channel(ImageChannel(
-                index=i,
-                suggested_name=channel_md.get('SuggestedName'),
-                emission_wavelength=emission,
-                excitation_wavelength=excitation,
-                color=color
-            ))
+            imd.set_channel(
+                ImageChannel(
+                    index=i, emission_wavelength=emission, excitation_wavelength=excitation,
+                    suggested_name=channel_md.get('SuggestedName'), color=color
+                )
+            )
 
         return imd
 

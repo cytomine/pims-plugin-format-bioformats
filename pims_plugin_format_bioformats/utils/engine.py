@@ -11,28 +11,34 @@
 #  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
+from __future__ import annotations
 
 import json
 import logging
 import select
 from socket import AF_INET, SOCK_STREAM, error as socket_error, socket
+from typing import Optional, TYPE_CHECKING
 
 import numpy as np
 from asgiref.sync import async_to_sync
 from fastapi_cache.coder import PickleCoder
+from pint import Quantity
 
 from pims import UNIT_REGISTRY
 from pims.cache import cache
-from pims.formats.utils.abstract import (
-    AbstractConvertor, AbstractParser,
-    AbstractReader
-)
-from pims.formats.utils.structures.metadata import ImageChannel, ImageMetadata
+from pims.formats import AbstractFormat
+from pims.formats.utils.convertor import AbstractConvertor
+from pims.formats.utils.parser import AbstractParser
+from pims.formats.utils.reader import AbstractReader
+from pims.formats.utils.structures.metadata import ImageChannel, ImageMetadata, MetadataStore
 from pims.formats.utils.structures.planes import PlanesInfo
 from pims.formats.utils.structures.pyramid import Pyramid, normalized_pyramid
 from pims.utils.color import Color
 from pims.utils.types import parse_float
 from pims_plugin_format_bioformats.config import get_settings
+
+if TYPE_CHECKING:
+    from pims.files.file import Path
 
 settings = get_settings()
 
@@ -91,7 +97,7 @@ def ask_bioformats(
 
 @async_to_sync
 @cache(codec=PickleCoder)
-def _bioformats_metadata(path):
+def _bioformats_metadata(path: Path) -> dict:
     message = {
         "action": "properties",
         "includeRawProperties": False,
@@ -101,12 +107,14 @@ def _bioformats_metadata(path):
     return ask_bioformats(message)
 
 
-def cached_bioformats_metadata(format):
-    return format.get_cached('_bioformats_md', _bioformats_metadata, format.path.resolve())
+def cached_bioformats_metadata(format: AbstractFormat) -> dict:
+    return format.get_cached(
+        '_bioformats_md', _bioformats_metadata, format.path.resolve()
+    )
 
 
 class BioFormatsParser(AbstractParser):
-    def parse_main_metadata(self):
+    def parse_main_metadata(self) -> ImageMetadata:
         metadata = cached_bioformats_metadata(self.format)
 
         imd = ImageMetadata()
@@ -138,14 +146,17 @@ class BioFormatsParser(AbstractParser):
 
             imd.set_channel(
                 ImageChannel(
-                    index=i, emission_wavelength=emission, excitation_wavelength=excitation,
-                    suggested_name=channel_md.get('SuggestedName'), color=color
+                    index=i,
+                    emission_wavelength=emission,
+                    excitation_wavelength=excitation,
+                    suggested_name=channel_md.get('SuggestedName'),
+                    color=color
                 )
             )
 
         return imd
 
-    def parse_known_metadata(self):
+    def parse_known_metadata(self) -> ImageMetadata:
         imd = super().parse_known_metadata()
         metadata = cached_bioformats_metadata(self.format)
 
@@ -193,14 +204,16 @@ class BioFormatsParser(AbstractParser):
         return imd
 
     @staticmethod
-    def parse_physical_size(physical_size, unit):
+    def parse_physical_size(
+        physical_size: Optional[str], unit: Optional[str]
+    ) -> Optional[Quantity]:
         if physical_size is not None \
                 and parse_float(physical_size) is not None \
                 and unit is not None:
             return parse_float(physical_size) * UNIT_REGISTRY(unit)
         return None
 
-    def parse_pyramid(self):
+    def parse_pyramid(self) -> Pyramid:
         metadata = cached_bioformats_metadata(self.format)
 
         pyramid = Pyramid()
@@ -213,7 +226,7 @@ class BioFormatsParser(AbstractParser):
 
         return pyramid
 
-    def parse_planes(self):
+    def parse_planes(self) -> PlanesInfo:
         metadata = cached_bioformats_metadata(self.format)
         imd = self.format.main_imd
         planes = PlanesInfo(
@@ -233,7 +246,7 @@ class BioFormatsParser(AbstractParser):
 
         return planes
 
-    def parse_raw_metadata(self):
+    def parse_raw_metadata(self) -> MetadataStore:
         message = {
             "action": "properties",
             "includeRawProperties": True,
@@ -261,7 +274,7 @@ class BioFormatsReader(AbstractReader):
 
 
 class BioFormatsSpatialConvertor(AbstractConvertor):
-    def convert(self, dest_path):
+    def convert(self, dest_path: Path) -> bool:
         width = self.source.main_imd.width
         height = self.source.main_imd.height
         n_resolutions = normalized_pyramid(width, height).n_levels

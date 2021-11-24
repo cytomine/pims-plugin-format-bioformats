@@ -17,7 +17,7 @@ from functools import cached_property
 from pims.formats import AbstractFormat
 from pims.formats.utils.abstract import CachedDataPath
 from pims.formats.utils.checker import SignatureChecker
-from pims.formats.utils.engines.vips import VipsHistogramReader
+from pims.formats.utils.histogram import DefaultHistogramReader
 from pims_plugin_format_bioformats.utils.engine import (
     BioFormatsParser, BioFormatsReader,
     BioFormatsSpatialConvertor
@@ -49,7 +49,7 @@ class CZIFormat(AbstractFormat):
     checker_class = CZIChecker
     parser_class = BioFormatsParser
     reader_class = BioFormatsReader  # TODO, but useless as conversion always needed ?
-    histogram_reader_class = VipsHistogramReader  # TODO
+    histogram_reader_class = DefaultHistogramReader
     convertor_class = BioFormatsSpatialConvertor
 
     def __init__(self, *args, **kwargs):

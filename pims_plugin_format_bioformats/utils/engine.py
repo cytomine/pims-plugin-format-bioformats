@@ -24,7 +24,6 @@ from asgiref.sync import async_to_sync
 from fastapi_cache.coder import PickleCoder
 from pint import Quantity
 
-from pims import UNIT_REGISTRY
 from pims.cache import cache
 from pims.formats import AbstractFormat
 from pims.formats.utils.convertor import AbstractConvertor
@@ -33,6 +32,7 @@ from pims.formats.utils.reader import AbstractReader
 from pims.formats.utils.structures.metadata import ImageChannel, ImageMetadata, MetadataStore
 from pims.formats.utils.structures.planes import PlanesInfo
 from pims.formats.utils.structures.pyramid import Pyramid, normalized_pyramid
+from pims.utils import UNIT_REGISTRY
 from pims.utils.color import Color
 from pims.utils.types import parse_float
 from pims_plugin_format_bioformats.config import get_settings

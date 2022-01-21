@@ -104,7 +104,10 @@ def _bioformats_metadata(path: Path) -> dict:
         "legacyMode": False,
         "path": str(path)
     }
-    return ask_bioformats(message)
+    return ask_bioformats(
+        message,
+        response_timeout=settings.bioformats_metadata_timeout
+    )
 
 
 def cached_bioformats_metadata(format: AbstractFormat) -> dict:
@@ -291,7 +294,11 @@ class BioFormatsSpatialConvertor(AbstractConvertor):
             "nPyramidResolutions": n_resolutions,
             "pyramidScaleFactor": 2
         }
-        result = ask_bioformats(message, response_timeout=1800.0, silent_fail=True)
+        result = ask_bioformats(
+            message,
+            response_timeout=settings.bioformats_conversion_timeout,
+            silent_fail=True
+        )
         return 'file' in result
 
     def conversion_format(self):

@@ -21,6 +21,8 @@ from pydantic import BaseSettings
 class Settings(BaseSettings):
     bioformats_host = "localhost"
     bioformats_port = 4321
+    bioformats_metadata_timeout = 15
+    bioformats_conversion_timeout = 200 * 60
 
     class Config:
         env_file = "pims-config.env"

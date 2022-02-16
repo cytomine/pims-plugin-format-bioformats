@@ -24,7 +24,7 @@ from asgiref.sync import async_to_sync
 from fastapi_cache.coder import PickleCoder
 from pint import Quantity
 
-from pims.cache import cache
+from pims.cache.redis import cache
 from pims.formats import AbstractFormat
 from pims.formats.utils.convertor import AbstractConvertor
 from pims.formats.utils.parser import AbstractParser

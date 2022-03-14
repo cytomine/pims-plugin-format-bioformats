@@ -21,10 +21,10 @@ from typing import Optional, TYPE_CHECKING
 
 import numpy as np
 from asgiref.sync import async_to_sync
-from fastapi_cache.coder import PickleCoder
 from pint import Quantity
 
-from pims.cache import cache
+from pims.cache import cache_data
+from pims.cache.redis import PickleCodec
 from pims.formats import AbstractFormat
 from pims.formats.utils.convertor import AbstractConvertor
 from pims.formats.utils.parser import AbstractParser
@@ -96,7 +96,7 @@ def ask_bioformats(
 
 
 @async_to_sync
-@cache(codec=PickleCoder)
+@cache_data(codec=PickleCodec)
 def _bioformats_metadata(path: Path) -> dict:
     message = {
         "action": "properties",

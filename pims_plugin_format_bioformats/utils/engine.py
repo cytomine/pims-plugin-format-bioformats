@@ -23,7 +23,8 @@ import numpy as np
 from asgiref.sync import async_to_sync
 from pint import Quantity
 
-from pims.cache.redis import PickleCodec, cache
+from pims.cache import cache_data
+from pims.cache.redis import PickleCodec
 from pims.formats import AbstractFormat
 from pims.formats.utils.convertor import AbstractConvertor
 from pims.formats.utils.parser import AbstractParser
@@ -95,7 +96,7 @@ def ask_bioformats(
 
 
 @async_to_sync
-@cache(codec=PickleCodec)
+@cache_data(codec=PickleCodec)
 def _bioformats_metadata(path: Path) -> dict:
     message = {
         "action": "properties",

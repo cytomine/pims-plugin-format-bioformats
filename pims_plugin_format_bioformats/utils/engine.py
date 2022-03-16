@@ -123,11 +123,10 @@ class BioFormatsParser(AbstractParser):
         imd = ImageMetadata()
         imd.width = metadata.get('Bioformats.Pixels.SizeX')
         imd.height = metadata.get('Bioformats.Pixels.SizeY')
-        imd.n_channels = metadata.get('Bioformats.Pixels.SizeC')
         imd.depth = metadata.get('Bioformats.Pixels.SizeZ')
         imd.duration = metadata.get('Bioformats.Pixels.SizeT')
-        imd.n_intrinsic_channels = metadata.get('Bioformats.Pixels.EffectiveSizeC')
-        imd.n_channels_per_read = imd.n_channels / imd.n_intrinsic_channels
+        imd.n_concrete_channels = metadata.get('Bioformats.Pixels.EffectiveSizeC')
+        imd.n_samples = int(metadata.get('Bioformats.Pixels.SizeC') / imd.n_concrete_channels)
 
         imd.pixel_type = metadata.get('Bioformats.Pixels.PixelType')
         imd.significant_bits = metadata.get('Bioformats.Pixels.BitsPerPixel')
@@ -233,7 +232,7 @@ class BioFormatsParser(AbstractParser):
         metadata = cached_bioformats_metadata(self.format)
         imd = self.format.main_imd
         planes = PlanesInfo(
-            imd.n_intrinsic_channels, imd.depth, imd.duration,
+            imd.n_concrete_channels, imd.depth, imd.duration,
             ['bf_index', 'bf_series'], [np.int, np.int]
         )
 

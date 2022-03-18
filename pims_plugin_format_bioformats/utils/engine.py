@@ -210,10 +210,10 @@ class BioFormatsParser(AbstractParser):
     def parse_physical_size(
         physical_size: Optional[str], unit: Optional[str]
     ) -> Optional[Quantity]:
-        if physical_size is not None \
-                and parse_float(physical_size) is not None \
-                and unit is not None:
-            return parse_float(physical_size) * UNIT_REGISTRY(unit)
+        if physical_size is not None and unit is not None:
+            physical_size = parse_float(physical_size)
+            if physical_size is not None and physical_size > 0:
+                return physical_size * UNIT_REGISTRY(unit)
         return None
 
     def parse_pyramid(self) -> Pyramid:

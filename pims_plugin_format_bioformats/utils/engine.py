@@ -274,7 +274,18 @@ class BioFormatsParser(AbstractParser):
 
         store = super().parse_raw_metadata()
         for key, value in raw_metadata.items():
-            store.set(key, value)
+            if (key.startswith('Bioformats.Pyramid')
+                    or key.startswith('Bioformats.Planes')
+                    or key.startswith('Bioformats.Channels')):
+                continue
+            if not key.startswith('Bioformats'):
+                store.set(
+                    key, value,
+                    namespace=self.format.get_identifier()
+                )
+            else:
+                store.set(key, value)
+
         return store
 
 

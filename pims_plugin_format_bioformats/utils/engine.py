@@ -30,6 +30,7 @@ from pims.cache.redis import PickleCodec
 from pims.formats import AbstractFormat
 from pims.formats.utils.convertor import AbstractConvertor
 from pims.formats.utils.engines.omexml import omexml_type
+from pims.formats.utils.engines.tifffile import remove_tiff_comments
 from pims.formats.utils.parser import AbstractParser
 from pims.formats.utils.reader import AbstractReader
 from pims.formats.utils.structures.metadata import ImageChannel, ImageMetadata, MetadataStore
@@ -291,29 +292,59 @@ class BioFormatsReader(AbstractReader):
 
 class BioFormatsSpatialConvertor(AbstractConvertor):
     def convert(self, dest_path: Path) -> bool:
-        width = self.source.main_imd.width
-        height = self.source.main_imd.height
-        n_resolutions = normalized_pyramid(width, height).n_levels
+        intermediate_path = dest_path.with_stem("intermediate").with_suffix(".tmp")
         message = {
             "action": "convert",
             "legacyMode": False,
             "path": str(self.source.path),
-            "output": str(dest_path),
+            "output": str(intermediate_path),
             "onlyBiggestSerie": True,  # TODO: need to convert series corresponding to associated
-            "flatten": False,
+            "flatten": True,
             "compression": "LZW",
             "keepOriginalMetadata": False,
             "group": True,
-            "nPyramidResolutions": n_resolutions,
-            "pyramidScaleFactor": 2
+            "nPyramidResolutions": 1,
+            "pyramidScaleFactor": 1,
+            "tileSize": 256,
+            "applyLUTs": False
         }
         result = ask_bioformats(
             message,
             response_timeout=settings.bioformats_conversion_timeout,
             silent_fail=True
         )
-        return 'file' in result
+        ok = 'file' in result
+        if not ok:
+            raise ValueError('BioFormats conversion failed.')
+
+        n_pages = self.source.main_imd.n_planes
+        vips_source = VIPSImage.new_from_file(str(intermediate_path), n=n_pages)
+
+        opts = dict()
+        if n_pages > 1:
+            opts['page_height'] = vips_source.get('page-height')
+
+        result = vips_source.tiffsave(
+            str(dest_path), pyramid=True, tile=True,
+            tile_width=256, tile_height=256, bigtiff=True,
+            properties=False, subifd=True,
+            depth=pyvips.enums.ForeignDzDepth.ONETILE,
+            compression=pyvips.enums.ForeignTiffCompression.LZW,
+            region_shrink=pyvips.enums.RegionShrink.MEAN,
+            **opts
+        )
+        intermediate_path.unlink()
+        ok = not bool(result)
+
+        # Some cleaning. libvips sets description to all pages, while it is
+        #  unnecessary after first page.
+        if ok:
+            try:
+                remove_tiff_comments(dest_path, n_pages, except_pages=[0])
+            except Exception:  # noqa
+                pass
+        return ok
 
     def conversion_format(self):
-        from pims.formats.common.ometiff import OmeTiffFormat
-        return OmeTiffFormat
+        from pims.formats.common.ometiff import PyrOmeTiffFormat
+        return PyrOmeTiffFormat

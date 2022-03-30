@@ -20,18 +20,21 @@ from socket import AF_INET, SOCK_STREAM, error as socket_error, socket
 from typing import Optional, TYPE_CHECKING
 
 import numpy as np
+import pyvips
 from asgiref.sync import async_to_sync
 from pint import Quantity
+from pyvips import Image as VIPSImage
 
 from pims.cache import cache_data
 from pims.cache.redis import PickleCodec
 from pims.formats import AbstractFormat
 from pims.formats.utils.convertor import AbstractConvertor
+from pims.formats.utils.engines.omexml import omexml_type
 from pims.formats.utils.parser import AbstractParser
 from pims.formats.utils.reader import AbstractReader
 from pims.formats.utils.structures.metadata import ImageChannel, ImageMetadata, MetadataStore
 from pims.formats.utils.structures.planes import PlanesInfo
-from pims.formats.utils.structures.pyramid import Pyramid, normalized_pyramid
+from pims.formats.utils.structures.pyramid import Pyramid
 from pims.utils import UNIT_REGISTRY
 from pims.utils.color import Color
 from pims.utils.types import parse_float
@@ -121,17 +124,27 @@ class BioFormatsParser(AbstractParser):
         metadata = cached_bioformats_metadata(self.format)
 
         imd = ImageMetadata()
+
+        pixel_type = metadata.get('Bioformats.Pixels.PixelType')
+        imd.pixel_type = np.dtype(omexml_type[pixel_type.lower()])
+        imd.significant_bits = metadata.get('Bioformats.Pixels.BitsPerPixel')
+
         imd.width = metadata.get('Bioformats.Pixels.SizeX')
         imd.height = metadata.get('Bioformats.Pixels.SizeY')
         imd.depth = metadata.get('Bioformats.Pixels.SizeZ')
         imd.duration = metadata.get('Bioformats.Pixels.SizeT')
+
         imd.n_concrete_channels = metadata.get('Bioformats.Pixels.EffectiveSizeC')
-        imd.n_samples = int(metadata.get('Bioformats.Pixels.SizeC') / imd.n_concrete_channels)
-
-        imd.pixel_type = metadata.get('Bioformats.Pixels.PixelType')
-        imd.significant_bits = metadata.get('Bioformats.Pixels.BitsPerPixel')
-
+        legacy_spp = metadata.get('Bioformats.Pixels.SamplesPerPixel', 1)
+        spp = 1
         for i, channel_md in enumerate(metadata.get('Bioformats.Channels')):
+            if i == 0:
+                spp = channel_md.get('SamplesPerPixel', legacy_spp)
+            elif channel_md.get('SamplesPerPixel', legacy_spp) != spp:
+                raise ValueError(
+                    'Differing SamplesPerPixel not supported'
+                )
+
             color = None
             if channel_md.get('Color') is not None:
                 color = Color(channel_md.get('Color'))
@@ -156,6 +169,7 @@ class BioFormatsParser(AbstractParser):
                 )
             )
 
+        imd.n_samples = spp
         return imd
 
     def parse_known_metadata(self) -> ImageMetadata:

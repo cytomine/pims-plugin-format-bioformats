@@ -302,6 +302,12 @@ class BioFormatsReader(AbstractReader):
 
 
 class BioFormatsSpatialConvertor(AbstractConvertor):
+    TILE_SIZE = 256
+    
+    def need_pyramid(self) -> bool:
+        imd = self.source.main_imd
+        return not (imd.width <= self.TILE_SIZE or imd.height <= self.TILE_SIZE)
+    
     def convert(self, dest_path: Path) -> bool:
         intermediate_path = dest_path.with_stem("intermediate").with_suffix(".tmp")
         message = {
@@ -316,7 +322,7 @@ class BioFormatsSpatialConvertor(AbstractConvertor):
             "group": True,
             "nPyramidResolutions": 1,
             "pyramidScaleFactor": 1,
-            "tileSize": 256,
+            "tileSize": self.TILE_SIZE,
             "applyLUTs": False
         }
         result = ask_bioformats(
@@ -336,9 +342,9 @@ class BioFormatsSpatialConvertor(AbstractConvertor):
             opts['page_height'] = vips_source.get('page-height')
 
         result = vips_source.tiffsave(
-            str(dest_path), pyramid=True, tile=True,
-            tile_width=256, tile_height=256, bigtiff=True,
-            properties=False, subifd=True,
+            str(dest_path), pyramid=self.need_pyramid(), tile=True,
+            tile_width=self.TILE_SIZE, tile_height=self.TILE_SIZE, bigtiff=True,
+            properties=False, subifd=self.need_pyramid(),
             depth=pyvips.enums.ForeignDzDepth.ONETILE,
             compression=pyvips.enums.ForeignTiffCompression.LZW,
             region_shrink=pyvips.enums.RegionShrink.MEAN,
@@ -357,5 +363,9 @@ class BioFormatsSpatialConvertor(AbstractConvertor):
         return ok
 
     def conversion_format(self):
-        from pims.formats.common.ometiff import PyrOmeTiffFormat
-        return PyrOmeTiffFormat
+        if not self.need_pyramid():
+            from pims.formats.common.ometiff import OmeTiffFormat
+            return OmeTiffFormat
+        else:
+            from pims.formats.common.ometiff import PyrOmeTiffFormat
+            return PyrOmeTiffFormat

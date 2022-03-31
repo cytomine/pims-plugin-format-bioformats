@@ -289,7 +289,7 @@ class BioFormatsParser(AbstractParser):
         return store
 
 
-# TODO
+# TODO, but useless as conversion always needed ?
 class BioFormatsReader(AbstractReader):
     def read_thumb(self, out_width, out_height, precomputed=None, c=None, z=None, t=None):
         raise NotImplementedError

@@ -1,0 +1,14 @@
+ARG  VERSION_NUMBER
+FROM cytomine/pims-plugin-format-bioformats-dependencies:v$VERSION_NUMBER
+
+RUN pip3 install pytest
+RUN pip3 install -e /app
+
+
+COPY ./ci/app/tests /app/tests
+
+RUN ls /app/
+
+RUN ls /app/tests
+
+CMD pytest -rP /app/plugins/pims-plugin-format-bioformats/tests --junit-xml=ci/test-reports/pytest_unit.xml

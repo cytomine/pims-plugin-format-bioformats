@@ -25,7 +25,6 @@ def get_image(root, path, filename):
         os.mkdir("/tmp/images")
 
     if not os.path.exists(root):
-        print(root)
         os.mkdir(root)
 	 
     if not os.path.exists(f"/tmp/images/{filename}"):
@@ -48,7 +47,7 @@ def get_image(root, path, filename):
                 subsubdirs = os.listdir(os.path.join(root, subdir))
                 for subsubdir in subsubdirs:
                     if ".nd2" in str(subsubdir):
-                        upload_dir = str(subdir)
+                        upload_dir = os.path.join(root, str(subdir))
                         break
         if os.path.exists(path):
             os.unlink(path) # if the folder upload_test_bioformats_nd2 already exists the symlink won't work

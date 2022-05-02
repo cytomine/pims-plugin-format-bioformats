@@ -29,7 +29,6 @@ def get_image(root, path, filename):
         try:
             url = f"https://downloads.openmicroscopy.org/images/Zeiss-CZI/idr0011/Plate1-Blue-A_TS-Stinger/{filename}"
             urllib.request.urlretrieve(url, f"/tmp/images/{filename}")
-            print("telechargement de l'image fini")
         except Exception as e:
             print("Could not download image")
             print(e)
@@ -54,7 +53,6 @@ def get_image(root, path, filename):
 def test_bioformats_czi_exists(image_path_czi, settings):
 	# Test if the file exists, either locally either with the OAC
 	path, filename = image_path_czi
-	print(path)
 	get_image(settings.root, path, filename)
 	assert os.path.exists(os.path.join(path,filename)) == True
 

@@ -21,4 +21,4 @@ containerId=$(docker create --link bioformat:bioformat -v /data/pims:/data/pims 
 docker start -ai  $containerId
 docker rm $containerId
 docker stop $containerIdBioformat
-docker rm $containeridBioformat
+docker rm $containerIdBioformat

@@ -1,0 +1,7 @@
+ARG  VERSION_NUMBER
+FROM cytomine/pims-plugin-format-bioformats-dependencies:v$VERSION_NUMBER
+
+ENV MODULE_NAME="pims.application"
+ENV PORT=5000
+EXPOSE ${PORT}
+CMD ["/start.sh"]

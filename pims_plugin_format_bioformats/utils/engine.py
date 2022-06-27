@@ -12,7 +12,7 @@
 #  * See the License for the specific language governing permissions and
 #  * limitations under the License.
 from __future__ import annotations
-
+import os
 import json
 import logging
 import select
@@ -87,7 +87,7 @@ def ask_bioformats(
 
             parsed_response = json.loads(response)
             if not silent_fail and 'error' in parsed_response:
-                raise ValueError  # TODO: better error
+                raise ValueError(parsed_response['error']) # TODO: better error
 
             return parsed_response
     except InterruptedError as e:
@@ -309,7 +309,9 @@ class BioFormatsSpatialConvertor(AbstractConvertor):
         return not (imd.width <= self.TILE_SIZE or imd.height <= self.TILE_SIZE)
     
     def convert(self, dest_path: Path) -> bool:
-        intermediate_path = dest_path.with_stem("intermediate").with_suffix(".tmp")
+        from pims.files.file import Path
+        intermediate_path = Path(os.path.join(os.path.split(dest_path)[0],"intermediate.tmp"))
+        #intermediate_path = dest_path.with_stem("intermediate").with_suffix(".tmp")
         message = {
             "action": "convert",
             "legacyMode": False,

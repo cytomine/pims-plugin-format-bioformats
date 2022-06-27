@@ -48,7 +48,7 @@ class CZIFormat(AbstractFormat):
     """
     checker_class = CZIChecker
     parser_class = BioFormatsParser
-    reader_class = BioFormatsReader
+    reader_class = None
     histogram_reader_class = DefaultHistogramReader
     convertor_class = BioFormatsSpatialConvertor
 

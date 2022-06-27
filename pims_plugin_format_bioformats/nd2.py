@@ -54,7 +54,7 @@ class ND2Format(AbstractFormat):
     """
     checker_class = ND2Checker
     parser_class = BioFormatsParser
-    reader_class = BioFormatsReader
+    reader_class = None
     histogram_reader_class = DefaultHistogramReader
     convertor_class = BioFormatsSpatialConvertor
 

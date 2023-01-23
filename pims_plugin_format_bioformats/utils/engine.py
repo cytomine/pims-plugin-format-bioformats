@@ -248,7 +248,7 @@ class BioFormatsParser(AbstractParser):
         imd = self.format.main_imd
         planes = PlanesInfo(
             imd.n_concrete_channels, imd.depth, imd.duration,
-            ['bf_index', 'bf_series'], [np.int, np.int]
+            ['bf_index', 'bf_series'], [np.int64, np.int64]
         )
 
         for plane_info in metadata.get('Bioformats.Planes', []):
